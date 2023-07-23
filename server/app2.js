@@ -14,7 +14,7 @@ var g_commands_histroy = new Array() // 历史指令，用于断线重连
 var g_joinCount = 0 // 已准备的人数
 var g_maxJoinCount = 2 // 最大人数
 var g_stepTime = 0 // 当前step时间戳
-var g_stepInterval = 33 // 每个step的间隔ms
+var g_stepInterval = 100 // 每个step的间隔ms
 var g_delayMaxFrame = 6;  // 最大延迟帧数
 
 

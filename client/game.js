@@ -162,20 +162,17 @@ class GameObject {
     let y = this.yF;
     x += vec[0] * dt * this.speed;
     y += vec[1] * dt * this.speed;
-    if (x <= (WIDTH - BOX_SIZE) && x >= 0) {
-      this.xF = x
-    }
-    if (y <= (HEIGHT - BOX_SIZE) && y >= 0) {
-      this.yF = y
-    }
+    x = Math.min((WIDTH - BOX_SIZE), Math.max(0, x));
+    y = Math.min((HEIGHT - BOX_SIZE), Math.max(0, y));
+    this.xF = x;
+    this.yF = y;
   }
 
-  // 表现层Update要在逻辑层Update前? 表现层update 做平滑处理lerp?
+  // 表现层update 做平滑处理lerp
   update(dt) {
     this.x = lerp(this.x, this.xF, dt/1000 * this.speed);
     this.y = lerp(this.y, this.yF, dt/1000 * this.speed);
   }
-
 
   onFrameData(ctrlArray) {
     for (let ctrl of ctrlArray) {
@@ -209,7 +206,7 @@ class Game {
 
     this.gameStatus = STATUS.INIT,
     this.network = new Network();
-    // 当前对象
+    // 当前控制的对象
     this.curObject = null;
     // 所有对象
     this.objects = {};
@@ -230,7 +227,8 @@ class Game {
 
     this.sendTime += dt;
     if (this.sendTime >= this.frameDt) {
-      this.sendTime -= this.frameDt;
+      this.sendTime -= this.frameDt;    // 与网络逻辑帧一致?
+      this.sendFrame(this.frameDt);
     }
 
     this.drawTime += dt;
@@ -279,13 +277,17 @@ class Game {
     this.updateFrame(this.frameDt)
   }
 
+  sendFrame(dt) {
+    this.curObject.updateFrame(dt);
+    this.network.sendMessage();
+  }
+
   // 逻辑帧Update
   updateFrame(dt) {
     this.network.clientFrameId += 1;
     // console.log(`serverFrameId ${this.network.serverFrameId}, clientFrameId ${this.network.clientFrameId}`);
     // if (this.network.clientFrameId > this.network.serverFrameId) {
     // }
-    this.network.sendMessage();
     let objIds = Object.keys(this.objects).sort();
     for (const id of objIds) {
       const obj = this.objects[id];
@@ -310,15 +312,21 @@ class Game {
     $("#lag").text("延迟: " + this.network.avgDelay + "ms");
     $("#frame").text("fps: " + this.avgfps);
 
+    this.curObject.update(dt);
+    this.context.font = "18px Arial";
+    requestAnimationFrame(() => {
+      this.context.fillStyle = "#000000";
+      this.context.fillRect(this.curObject.x, this.curObject.y, BOX_SIZE, BOX_SIZE)
+      this.context.fillText(this.curObject.id, this.curObject.x, this.curObject.y + BOX_SIZE, BOX_SIZE);
+    });
+
     for (const key in this.objects) {
       const obj = this.objects[key];
       obj.update(dt);
-      
       requestAnimationFrame(() => {
+        this.context.fillStyle = "#8B8B8B";
         this.context.fillRect(obj.x, obj.y, BOX_SIZE, BOX_SIZE)
-        this.context.font = "18px Arial";
-        this.context.fillStyle = "#FFFFFF";
-        this.context.fillText(key, obj.x, obj.y + BOX_SIZE, BOX_SIZE);
+        this.context.fillText(obj.id, obj.x, obj.y + BOX_SIZE, BOX_SIZE);
       });
     }
   }
@@ -349,6 +357,7 @@ class Game {
         const direction = KEY2DIRECT[keyCode];
         const cmd = CMD[direction];
         let msg = {cmd: cmd};
+        this.curObject.direct = direction;
         this.network.sendMsg(msg);
         break;
       }  

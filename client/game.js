@@ -215,6 +215,7 @@ class Game {
     this.objects = {};
 
     this.context = null;
+    this.randomMove = false;
   }
 
   tick(dt) {
@@ -344,6 +345,7 @@ class Game {
           console.warn("当前帧小于服务端逻辑帧, 禁止操作");
           return;
         }
+        this.showTips(KEY2DIRECT[keyCode]);
         const direction = KEY2DIRECT[keyCode];
         const cmd = CMD[direction];
         let msg = {cmd: cmd};
@@ -369,6 +371,19 @@ class Game {
     console.log(str)
   }
 
+  randomPress() {
+    if (this.randomMove == false) {
+      return;
+    }
+    let keys = [37, 38, 39, 40];
+    let index = Math.floor(Math.random() * keys.length);
+    let key = keys[index];
+    this.onKeyDown(key);
+
+    let nextTime = Math.random() * 3000;
+    setTimeout(() => this.randomPress(), nextTime);
+  }
+
   start() {
     this.context = document.getElementById("canvas").getContext("2d");
     $("#content").hide();
@@ -377,13 +392,6 @@ class Game {
 
     // 按键监听
     $("body").keydown((e) => {
-      switch(e.keyCode) {
-        case 37: case 38: case 39: case 40:
-        {
-          this.showTips(KEY2DIRECT[e.keyCode]);
-          break;
-        }
-      }
       this.onKeyDown(e.keyCode);
     });
 
@@ -424,7 +432,17 @@ class Game {
       }
       this.curObject = new GameObject(account);
       this.sendCtrl("join", account);
-    })
+    });
+
+    $("#random_move").click(() => {
+      this.randomMove = !this.randomMove;
+      if (this.randomMove) {
+        this.randomPress();
+      } else {
+        // 暂停
+        this.onKeyDown(13);
+      }
+    });
   }
 }
 

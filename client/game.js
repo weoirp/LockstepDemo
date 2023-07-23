@@ -223,6 +223,27 @@ class Game {
     if (this.readTime <= 0) {
       this.readTime = this.readTime + this.readTimeDt;
       this.readFrame();
+
+      let scale = 1;
+      let delteFrame = this.network.serverFrameId - this.network.clientFrameId;
+      if (delteFrame > 10) {    // 暂时确定 10帧
+        scale = Math.ceil(delteFrame / 10) + 1;
+        scale = Math.min(scale, 16);
+      }
+      if (scale > 1) {
+        this.changeReadFps(this.logicFps * scale);
+        // 追帧的过程中
+        // TODO:
+        let shadowObject = this.objects[this.curObject.id];
+        this.curObject.x = shadowObject.x;
+        this.curObject.y = shadowObject.y;
+        this.curObject.xF = shadowObject.xF;
+        this.curObject.yF = shadowObject.yF;
+        this.curObject.direct = shadowObject.direct;
+        this.curObject.speed = shadowObject.speed;
+      } else {
+        this.changeReadFps(this.logicFps);
+      }
     }
 
     this.sendTime += dt;

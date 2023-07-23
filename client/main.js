@@ -25,7 +25,7 @@ var STATUS = {
 // 游戏宽高
 var WIDTH = 320
 var HEIGHT = 400
-var BOX_SIZE = 30
+var BOX_SIZE = 18
 
 // 游戏对象
 var GameObject = function(id) {
@@ -150,7 +150,7 @@ $(function () {
 			var command = json[i]
 			recvCommands.push(command)
 			stepTime = command[command.length - 1].step
-			console.log("**** recv " + stepTime + " ****")
+			// console.log("**** recv " + stepTime + " ****")
 		}
 	})
 
@@ -220,7 +220,7 @@ $(function () {
 				}
 				for (var i = 0; i < runningCommands.length; i++) {
 					var command = runningCommands[i]
-					if(runningCommands.ms == stepInterval) console.log(command)
+					// if(runningCommands.ms == stepInterval) console.log(command)
 					var obj = gameObjects[command.id]
 					if(command.direction) {
 						obj.direction = command.direction

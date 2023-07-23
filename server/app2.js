@@ -9,12 +9,13 @@ var io = require('socket.io')(server, {
 })
 
 var g_onlines = {} // 所有在线玩家
-var g_commands = new Array() // 指令数组
+var g_ctrls = {}  // 当前帧采集的每个客户端的指令 {id: []}
 var g_commands_histroy = new Array() // 历史指令，用于断线重连
 var g_joinCount = 0 // 已准备的人数
 var g_maxJoinCount = 2 // 最大人数
 var g_stepTime = 0 // 当前step时间戳
 var g_stepInterval = 100 // 每个step的间隔ms
+
 
 // 游戏状态枚举
 var STATUS = {
@@ -77,13 +78,38 @@ io.on('connection', function (socket) {
 		socket.emit('timeSync', {client:time, server:Date.now()})
 	})
 
+  /***
+   * message:
+   * {
+   *  frame:      客户端帧号
+   *  ctrl:  []   客户端控制信息
+   * }
+   * 
+   * 客户端的frame Id 大于等于当前服务端的 frame Id
+   * 客户端的frame Id 小于当前服务端的 frame Id
+   * 服务端收到数据包，判断
+   * 给当前的帧内的数据包打上当前帧号
+   */
 	socket.on('message', function(json) {
 		if(g_gameStatus == STATUS.START) {
-			// TODO:过滤高延迟的包 (json.step)
-			json.id = getAccount(socket.id)
-			if(json.id) {
-				g_commands.push(json)
-			}
+      let frame = json.frame;    // 客户端的frame
+			// TODO:过滤高延迟的包 (json.frame)
+      if (frame - g_stepTime > 0) {
+        console.log(`client frame: ${frame}, server frame: ${g_stepTime}`);
+        return;
+      }
+      let ctrl = json.ctrl;
+      for (let i = 0; i < ctrl.length; i++) {
+        let msg = ctrl[i];
+        let id = getAccount(socket.id);
+        if (!id) {
+          continue;
+        }
+        if (!g_ctrls[id]) {
+          g_ctrls[id] = new Array();
+        }
+        g_ctrls[id].push(msg);
+      }
 		}
 	})
 
@@ -113,27 +139,24 @@ io.on('connection', function (socket) {
 })
 
 // step定时器
-function stepUpdate() {
-	// 过滤同帧多次指令
-	var message = {}
+function stepUpdate() {  
+  /***
+   * history/ emit message: 
+   *  [{frame: number, ctrls: {id: []} }, ...]
+   * frame  => server step
+   * 
+   * 服务端广播当前 step 收到的指令
+   */
+  
+  let curFrameData = {
+    frame: g_stepTime,
+    ctrls: g_ctrls,
+  };
+  g_ctrls = {};
+	g_commands_histroy.push(curFrameData)
+  let message = new Array(curFrameData);
 	for(var key in g_onlines) {
-		message[key] = {step:g_stepTime, id:key}
-	}
-	for(var i = 0; i < g_commands.length; ++i) {
-		var command = g_commands[i]
-		command.step = g_stepTime
-		message[command.id] = command
-	}
-	g_commands = new Array()
-
-	// 发送指令
-	var commands = new Array()
-	for(var key in message) {
-		commands.push(message[key])
-	}
-	g_commands_histroy.push(commands)
-	for(var key in g_onlines) {
-		g_onlines[key].socket.emit('message', new Array(commands))
+		g_onlines[key].socket.emit('message', message);
 	}
 }
 
